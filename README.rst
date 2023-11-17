@@ -23,7 +23,7 @@ Then, the Hamiltonian is:
 
 where :math:`$A$` is defined by:
 
-:math:`$$A_{ijn} = \begin{cases} 1 & \text{$i$ and $j$ are $n$'th nearest neighbors} \\ 0 & \text{else} \end{cases}$$`.
+:math:`$$A_{ijn} = \begin{cases} 1 & \text{sites $i$ and $j$ are $n$'th nearest neighbors} \\ 0 & \text{else} \end{cases}$$`
 
 Note that :math:`$u_{\alpha\beta n}$` is intensive, and therefore can be used on a larger lattice with a larger adjacency tensor.
 
