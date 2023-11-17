@@ -80,10 +80,7 @@ class SymmetryConstraint(cooper.ConstrainedMinimizationProblem):
         """
 
         # transpose matrices by permuting axes
-        transposed = einops.rearrange(
-            self.model.interaction_tensor,
-            'α β n -> β α n'
-        )
+        transposed = einops.rearrange(self.model.interaction_tensor, 'α β n -> β α n')
 
         # compute deviation from symmetry
         square_diff = (self.model.interaction_tensor - transposed) ** 2
