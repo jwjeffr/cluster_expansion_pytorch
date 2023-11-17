@@ -4,7 +4,7 @@
 .. _cooper: https://github.com/cooper-org/cooper
 .. _einops: https://github.com/arogozhnikov/einops
 
-Cluster Expansion Fitting using PyTorch
+Cluster Expansion Fitting Using PyTorch
 #######################################
 
 The goal of the cluster expansion is to fit energy data to some Hamiltonian (using the Einstein summation convention):
