@@ -11,7 +11,7 @@ The goal of the cluster expansion is to fit energy data to some Hamiltonian (usi
 
 :math:`$$\mathcal{H} = N_{\alpha\beta n}u_{\alpha\beta n}$$`
 
-where :math:`$N_{\alpha\beta n}$` is the number of :math:`$\alpha$`-:math:`$\beta$` bonds in the :math:`$n$`'th neighbor shell, with Greek letters indexing atom types.
+where :math:`$N_{\alpha\beta n}$` is the number of :math:`$\alpha$`-:math:`$\beta$` bonds in the :math:`$n$`'th neighbor shell and :math:`$u_{\alpha\beta n}$` is the :math:`$\alpha$`-:math:`$\beta$` interaction at the :math:`$n$`'th nearest neighbor distance. Note that Greek letters index atom types.
 
 We can count the number of bonds by occupation matrices :math:`$x_{i\alpha}$`, where:
 
