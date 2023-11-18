@@ -1,6 +1,5 @@
 import torch
 import cooper
-import einops
 import numpy as np
 from numpy.typing import ArrayLike
 from dataclasses import dataclass
@@ -14,7 +13,7 @@ def make_symmetric(t: torch.Tensor) -> torch.Tensor:
     :return: symmetrized tensor
     """
 
-    return (t + einops.rearrange(t, 'α β n -> β α n')) / 2.0
+    return (t + torch.einsum('abn -> ban', t)) / 2.0
 
 
 class Model(torch.nn.Module):
@@ -50,12 +49,12 @@ class Model(torch.nn.Module):
         :return: energies of each sample indexed by s
         """
 
-        return 0.5 * einops.einsum(
+        return 0.5 * torch.einsum(
+            'abn,ijn,ias,jbs -> s',
             self.interaction_tensor,
             self.adjacency_tensor,
             x_batch,
-            x_batch,
-            'α β n, i j n, i α s, j β s -> s'
+            x_batch
         )
 
 
@@ -78,7 +77,7 @@ class SymmetryConstraint(cooper.ConstrainedMinimizationProblem):
         """
 
         # transpose matrices by permuting axes
-        transposed = einops.rearrange(self.model.interaction_tensor, 'α β n -> β α n')
+        transposed = torch.einsum('abn -> ban', self.model.interaction_tensor)
 
         # compute deviation from symmetry
         square_diff = (self.model.interaction_tensor - transposed) ** 2
@@ -88,31 +87,6 @@ class SymmetryConstraint(cooper.ConstrainedMinimizationProblem):
             loss=self.criterion(self.model.forward(self.inputs), self.targets),
             eq_defect=square_diff.flatten().sum()
         )
-
-
-def widget(epoch, total_epochs, info: str = None):
-
-    """
-    Widget showing progress of training
-    :param epoch: current training epoch
-    :param total_epochs: total epoch
-    :param info: optional string to print out after progress bar
-    :return: None
-    """
-
-    num_bars_total = 50
-    proportion_finished = (epoch + 1) / total_epochs
-    num_bars_filled = int(num_bars_total * proportion_finished)
-
-    progress_bar = ''.join(['\\'] * num_bars_filled) + ''.join(['|'] * (num_bars_total - num_bars_filled))
-    if proportion_finished == 1.0:
-        end_char = '\n'
-    else:
-        end_char = ''
-    if info:
-        print(f'\r{progress_bar} {proportion_finished * 100:.1f}% {info}\r', end=end_char)
-    else:
-        print(f'\r{progress_bar} {proportion_finished * 100:.1f}', end=end_char)
 
 
 @dataclass
@@ -202,7 +176,7 @@ class ClusterExpansion:
             defect, loss = cmp.state.eq_defect, cmp.state.loss
 
             info = f'constraint loss: {defect:.2E}, overall loss: {loss:.2E}'
-            widget(epoch, self.num_epochs, info)
+            self.widget(epoch, info)
 
             eq_defects[epoch] = defect
             losses[epoch] = loss
