@@ -12,7 +12,7 @@ def main():
     interaction_order = 2
     num_sites = 200
     num_samples = 50
-    num_epochs = 10_000
+    num_epochs = 1_000_000
 
     # initialize occupation numbers, where each site can only be occupied by a single type
     all_occupation_numbers = np.zeros((num_sites, num_types, num_samples))
