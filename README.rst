@@ -27,7 +27,7 @@ where :math:`$A$` is defined by:
 
 Note that :math:`$u_{\alpha\beta n}$` is intensive, and therefore can be used on a larger lattice with a larger adjacency tensor.
 
-This repository contains a script that uses PyTorch, `einops`_, and `cooper`_ to fit :math:`$u_{\alpha\beta n}$` in terms of configuration matrices and energies with an input adjacency tensor.
+This repository contains a library (``cluster_expand.py``) and an example using the library (``example.py``) that uses PyTorch, `einops`_, and `cooper`_ to fit :math:`$u_{\alpha\beta n}$` in terms of configuration matrices and energies with an input adjacency tensor.
 
 - PyTorch is used to create a Model class and accelerate the tensor operations and optimization
 - Einops is used to simplify the syntax for the tensor operations such as Einstein summations
