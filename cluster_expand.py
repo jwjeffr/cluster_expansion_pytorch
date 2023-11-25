@@ -116,6 +116,10 @@ class ClusterExpansion:
             self.adjacency_tensor = torch.Tensor(self.adjacency_tensor)
 
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        
+        self.occupation_tensor = self.occupation_tensor.to(self.device)
+        self.energies = self.energies.to(self.device)
+        self.adjacency_tensor = self.adjacency_tensor.to(self.device)
 
     def widget(self, epoch, info: str = None):
 
@@ -177,7 +181,7 @@ class ClusterExpansion:
 
             defect, loss = cmp.state.eq_defect, cmp.state.loss
 
-            info = f'constraint loss: {defect:.2E}, overall loss: {loss:.2E}'
+            info = f'symmetry rmse (energy units): {torch.sqrt(defect):.2E}, fitting rmse (energy units): {torch.sqrt(loss):.2E}'
             self.widget(epoch, info)
 
             eq_defects[epoch] = defect
@@ -192,84 +196,81 @@ class ClusterExpansion:
 
         u = u.detach().cpu().numpy()
 
-        print(f'Close to symmetric loss: {predicted:.2E}')
-        print(f'Symmetrized loss: {new_predicted:.2E}')
+        print(f'Final iteration rmse (energy units): {torch.sqrt(predicted):.2E}')
+        print(f'Symmetrized rmse (energy units): {torch.sqrt(new_predicted):.2E}')
 
         return eq_defects, losses, u
-
-
+    
+    
 @dataclass
-class FCCLattice:
-
+class CubicLattice:
+    
+    """
+    Small class for generating a cubic lattice
+    """
+    
     lattice_parameter: float
     dimensions: ArrayLike
-    atomic_basis: ArrayLike = None
-    sites: ArrayLike = None
-    num_sites: int = None
+    atomic_basis: ArrayLike
+    first_nearest: float
+    second_nearest: float
+    pbc_padding: ArrayLike
 
     def __post_init__(self):
-
-        if self.atomic_basis is None:
-            self.atomic_basis = np.array([
-                [0.0, 0.0, 0.0],
-                [0.5, 0.5, 0.0],
-                [0.5, 0.0, 0.5],
-                [0.5, 0.5, 0.5]
-            ])
-
-        if self.num_sites is None:
-            self.num_sites = np.prod(self.dimensions) * len(self.atomic_basis)
-
-        if self.sites is None:
-            self.sites = np.zeros((self.num_sites, len(self.dimensions)))
-
-        assert len(self.sites) == self.num_sites
-
-        if type(self.dimensions) is not np.ndarray:
-            self.dimensions = np.array(self.dimensions)
-
+        
+        assert len(self.dimensions) == 3
+        
+        # convert into numpy arrays
+        
+        self.dimensions = np.array(self.dimensions)
+        self.atomic_basis = np.array(self.atomic_basis)
+        self.pbc_padding = np.array(self.pbc_padding)
+        
+        # initialize a lattice vector
+        self.lattice_vector = np.ones(3) * self.lattice_parameter
+        
+        # calculate the number of sites and initialize sites/site ids
+        self.num_sites = np.prod(self.dimensions) * len(self.atomic_basis)
+        self.sites = np.zeros((self.num_sites, 3))
         self.ids = np.arange(self.num_sites)
-        self.bounds = self.dimensions + np.array([self.lattice_parameter] * 3) / 2.0
-
-    def calculate_site_positions(self):
-
+        
+        # populate site ids
         site_id = 0
-
-        for i, j, k in product(*[range(dimension) for dimension in self.dimensions]):
-
-            unit_cell_position = np.array([i, j, k]) * self.lattice_parameter
-
+        for coord in product(*[range(i) for i in self.dimensions]):
             for basis_site in self.atomic_basis:
-
-                self.sites[site_id] = unit_cell_position + basis_site * self.lattice_parameter
+                self.sites[site_id] = (np.array(coord) + basis_site) * self.lattice_vector
                 site_id += 1
-
-    def get_adjacency_tensor(self, tolerance: float = 0.05):
-
-        if self.sites is None:
-            raise ValueError('run FCCLattice.calculate_site_positions() method first')
-
-        first_nearest_distance = self.lattice_parameter / np.sqrt(2.0)
-        second_nearest_distance = self.lattice_parameter
-
-        adjacency_matrix = np.zeros((self.num_sites, self.num_sites, 2))
-
+        
+        # get bounds and add padding for periodic boundary conditions
+        self.bounds = np.max(self.sites, axis=0)
+        self.bounds += self.pbc_padding
+    
+        
+    def get_order_two_adjacency_tensor(self, tolerance: float = 0.01) -> ArrayLike:
+        
+        """
+        Method for getting the adjacency tensor with interaction order 2
+        :param tolerance: tolerance for neighbor cutoffs
+        :return: adjacency tensor of shape (number of sites, number of sites, 2)
+        """
+        
+        # initialize tensor
+        adjacency_tensor = np.zeros((self.num_sites, self.num_sites, 2))
+        
+        # loop through pairs of sites
         for i, first_site in enumerate(self.sites):
             for j, second_site in enumerate(self.sites):
-
+                
+                # matrix is symmetric so do this to avoid redundant calculations
                 if j >= i:
                     continue
-
-                distance = np.linalg.norm(
-                    np.mod(first_site - second_site + self.bounds / 2, self.bounds) - self.bounds / 2
-                )
-
-                if 0.0 < distance < (1.0 + tolerance) * first_nearest_distance:
-                    adjacency_matrix[i, j, 0] = 1.0
-
-                elif distance < (1.0 + tolerance) * second_nearest_distance:
-                    adjacency_matrix[i, j, 1] = 1.0
-
-        adjacency_matrix += np.einsum('ijk->jik', adjacency_matrix)
-
-        return adjacency_matrix
+                
+                # populate based on distance between sites, accounting for periodic boundary conditions
+                distance = np.linalg.norm(np.mod(first_site - second_site + self.bounds / 2, self.bounds) - self.bounds / 2)
+                if distance < (1.0 + tolerance) * self.first_nearest:
+                    adjacency_tensor[i, j, 0] = 1.0
+                elif distance < (1.0 + tolerance) * self.second_nearest:
+                    adjacency_tensor[i, j, 1] = 1.0
+                    
+        adjacency_tensor += np.einsum('ijn->jin', adjacency_tensor)
+        return adjacency_tensor
