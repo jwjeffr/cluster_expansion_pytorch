@@ -26,7 +26,9 @@ where :math:`$A$` is defined by:
 
 Note that :math:`$u_{\alpha\beta n}$` is intensive, and therefore can be used on a larger lattice with a larger adjacency tensor.
 
-This repository contains a library (``cluster_expand.py``) and an example using the library (``example.py``) that uses PyTorch and `cooper`_ to fit :math:`$u_{\alpha\beta n}$` in terms of configuration matrices and energies with an input adjacency tensor.
+This repository contains a library (``cluster_expand.py``) and an example mixed Lennard Jones solid calculation using the library (``cluster_expansion_example.ipynb``).
+
+The library uses PyTorch and `cooper`_ to fit :math:`$u_{\alpha\beta n}$` in terms of configuration matrices and energies with an input adjacency tensor.
 
 - PyTorch is used to create a Model class and accelerate the tensor operations and optimization
 - Cooper is used to constrain the optimization such that :math:`$u_{\alpha\beta n} = u_{\beta\alpha n}$`
