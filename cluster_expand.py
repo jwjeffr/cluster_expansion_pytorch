@@ -1,3 +1,5 @@
+from itertools import product
+
 import torch
 import cooper
 import numpy as np
@@ -194,3 +196,80 @@ class ClusterExpansion:
         print(f'Symmetrized loss: {new_predicted:.2E}')
 
         return eq_defects, losses, u
+
+
+@dataclass
+class FCCLattice:
+
+    lattice_parameter: float
+    dimensions: ArrayLike
+    atomic_basis: ArrayLike = None
+    sites: ArrayLike = None
+    num_sites: int = None
+
+    def __post_init__(self):
+
+        if self.atomic_basis is None:
+            self.atomic_basis = np.array([
+                [0.0, 0.0, 0.0],
+                [0.5, 0.5, 0.0],
+                [0.5, 0.0, 0.5],
+                [0.5, 0.5, 0.5]
+            ])
+
+        if self.num_sites is None:
+            self.num_sites = np.prod(self.dimensions) * len(self.atomic_basis)
+
+        if self.sites is None:
+            self.sites = np.zeros((self.num_sites, len(self.dimensions)))
+
+        assert len(self.sites) == self.num_sites
+
+        if type(self.dimensions) is not np.ndarray:
+            self.dimensions = np.array(self.dimensions)
+
+        self.ids = np.arange(self.num_sites)
+        self.bounds = self.dimensions + np.array([self.lattice_parameter] * 3) / 2.0
+
+    def calculate_site_positions(self):
+
+        site_id = 0
+
+        for i, j, k in product(*[range(dimension) for dimension in self.dimensions]):
+
+            unit_cell_position = np.array([i, j, k]) * self.lattice_parameter
+
+            for basis_site in self.atomic_basis:
+
+                self.sites[site_id] = unit_cell_position + basis_site * self.lattice_parameter
+                site_id += 1
+
+    def get_adjacency_tensor(self, tolerance: float = 0.05):
+
+        if self.sites is None:
+            raise ValueError('run FCCLattice.calculate_site_positions() method first')
+
+        first_nearest_distance = self.lattice_parameter / np.sqrt(2.0)
+        second_nearest_distance = self.lattice_parameter
+
+        adjacency_matrix = np.zeros((self.num_sites, self.num_sites, 2))
+
+        for i, first_site in enumerate(self.sites):
+            for j, second_site in enumerate(self.sites):
+
+                if j >= i:
+                    continue
+
+                distance = np.linalg.norm(
+                    np.mod(first_site - second_site + self.bounds / 2, self.bounds) - self.bounds / 2
+                )
+
+                if 0.0 < distance < (1.0 + tolerance) * first_nearest_distance:
+                    adjacency_matrix[i, j, 0] = 1.0
+
+                elif distance < (1.0 + tolerance) * second_nearest_distance:
+                    adjacency_matrix[i, j, 1] = 1.0
+
+        adjacency_matrix += np.einsum('ijk->jik', adjacency_matrix)
+
+        return adjacency_matrix
